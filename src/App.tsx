@@ -1,5 +1,5 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { Flex, Box, Text, Button, Skeleton } from '@chakra-ui/react';
+import { Flex, Box, Text, Button, Skeleton, theme } from '@chakra-ui/react';
 import { useEffect, useRef, useState } from 'react';
 
 const API_URL = 'https://api1.binance.com/api/v3/ticker/price';
@@ -41,11 +41,11 @@ const Ticker = ({ percentageType, percentChange, price, loading, label }: Ticker
   const percentageElRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (percentageElRef.current) {
-      let color = 'gray.900';
+      let color = theme.colors.gray['900'];
       if (percentageType === 'decreased') {
-        color = 'red.500';
+        color = theme.colors.red['500'];
       } else if (percentageType === 'increased') {
-        color = 'green.500';
+        color = theme.colors.green['500'];
       }
       percentageElRef.current.style.color = color;
     }
