@@ -1,74 +1,43 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { Flex, Box, Text, Button, Skeleton, theme } from '@chakra-ui/react';
-import { useEffect, useRef, useState } from 'react';
+import { Flex, Button, Input } from '@chakra-ui/react';
+import { useEffect, useMemo, useState } from 'react';
+import Ticker, { Percentage, TickerProps } from './Ticker';
 
 const API_URL = 'https://api1.binance.com/api/v3/ticker/price';
-
-const coinsTickers = [
-  { symbol: 'BTCBUSD', label: 'BTC/BUSD' },
-  { symbol: 'EGLDBUSD', label: 'EGLD/BUSD' },
-];
-
-const coinsTickersMem = coinsTickers.reduce((acc, coinTicker) => ({
-  ...acc,
-  [coinTicker.symbol]: coinTicker.label,
-}), {});
-
-type Percentage = 'decreased' | 'increased' | 'default';
 
 interface BinanceTicker {
   symbol: string;
   price: string;
 }
 
-interface TickerProps {
-  price: number;
-  percentChange: string;
-  percentageType: Percentage;
-  loading: boolean;
-  label: string;
-}
-
-
-const Ticker = ({ percentageType, percentChange, price, loading, label }: TickerProps) => {
-  let percentageText = `${percentChange}%`;
-  if (percentageType === 'decreased') {
-    percentageText = `-${percentageText}`;
-  } else if (percentageType === 'increased') {
-    percentageText = `+${percentageText}`;
-  }
-
-  const percentageElRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (percentageElRef.current) {
-      let color = theme.colors.gray['900'];
-      if (percentageType === 'decreased') {
-        color = theme.colors.red['500'];
-      } else if (percentageType === 'increased') {
-        color = theme.colors.green['500'];
-      }
-      percentageElRef.current.style.color = color;
-    }
-  });
-  return (
-    <Skeleton isLoaded={!loading}>
-      <Flex bg="gray.100" w="200px" h="80px" borderRadius={5} justify="center" align="center">
-        <Box>
-          <Flex gap={2} align="center">
-            <Text fontSize="xl">{label}</Text>
-            <Text ref={percentageElRef}>{percentageText}</Text>
-          </Flex>
-          <Text fontWeight="bold">${price}</Text>
-        </Box>
-      </Flex>
-    </Skeleton>
-  );
-};
-
 function App() {
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(true);
   const [tickers, setTickers] = useState<{ [key: string]: Omit<TickerProps, 'loading'> } | null>(null);
+  const [coinsTickers, setCoinsTickers] = useState<{ symbol: string; label: string }[]>([{
+    symbol: 'BTCBUSD',
+    label: 'BTC/BUSD',
+  }]);
+  const [tickerLabel, setTickerLabel] = useState<string>('');
+  const [tickerSymbol, setTickerSymbol] = useState<string>('');
+
+  const handleInputChange = (evt) => {
+    const value = evt.target.value;
+    const name = evt.target.name;
+    if (name === 'label') {
+      setTickerLabel(value);
+    } else {
+      setTickerSymbol(value);
+    }
+  };
+
+  const handleAddTickerClick = () => {
+    if (tickerSymbol && tickerLabel) {
+      setCoinsTickers([...coinsTickers, { label: tickerLabel, symbol: tickerSymbol }]);
+      setTickerLabel('');
+      setTickerSymbol('');
+    }
+  };
 
   const togglePolling = () => setPolling(!polling);
 
@@ -99,7 +68,7 @@ function App() {
       return data.reduce((acc, binanceTicker) => {
         let percentageType: Percentage = 'default';
         const price = parseFloat(binanceTicker.price ?? '0');
-        const previousPrice = prevState[binanceTicker.symbol].price;
+        const previousPrice = prevState[binanceTicker.symbol]?.price ?? 0;
         if (previousPrice > price) {
           percentageType = 'decreased';
         } else if (previousPrice < price) {
@@ -135,23 +104,40 @@ function App() {
     }
 
     return () => clearInterval(intervalId);
-  }, [polling]);
+  }, [polling, tickers]);
+
+  const coinsTickersMem = useMemo(() => coinsTickers.reduce((acc, coinTicker) => ({
+    ...acc,
+    [coinTicker.symbol]: coinTicker.label,
+  }), {}), [coinsTickers]);
 
   return (
     <ChakraProvider>
-      <Flex gap={8} p={4} align="center">
-        {coinsTickers.map(coinTicker => {
-          const ticker = (tickers ?? {})[coinTicker.symbol] ?? {
-            price: 0,
-            percentageType: 'default',
-            percentChange: '0',
-            symbol: coinTicker.symbol,
-            label: coinsTickersMem[coinTicker.symbol],
-          };
-          return <Ticker {...ticker} key={ticker.label} loading={loading}/>;
-        })}
-        <Button onClick={togglePolling}
-                colorScheme={polling ? 'red' : 'green'}>{polling ? 'Stop' : 'Start'} update</Button>
+      <Flex gap={8} p={4} direction="column">
+        <Flex gap={8} align="center" maxW="800px">
+          <Input value={tickerLabel} onChange={handleInputChange} name="label" size="lg" flex={2}
+                 placeholder="Binance coin ticker label"/>
+          <Input value={tickerSymbol} onChange={handleInputChange} name="symbol" size="lg" flex={2}
+                 placeholder="Binance coin ticker symbol e.g. BTCBUSD"/>
+          <Button flex={1} size="lg" disabled={!tickerLabel || !tickerSymbol} onClick={handleAddTickerClick}>Add
+            ticker</Button>
+        </Flex>
+        {coinsTickers.length > 0 && (
+          <Flex gap={8} align="center">
+            {coinsTickers.map(coinTicker => {
+              const ticker = (tickers ?? {})[coinTicker.symbol] ?? {
+                price: 0,
+                percentageType: 'default',
+                percentChange: '0',
+                symbol: coinTicker.symbol,
+                label: coinsTickersMem[coinTicker.symbol],
+              };
+              return <Ticker {...ticker} key={ticker.label} loading={loading}/>;
+            })}
+            <Button onClick={togglePolling}
+                    colorScheme={polling ? 'red' : 'green'}>{polling ? 'Stop' : 'Start'} update</Button>
+          </Flex>
+        )}
       </Flex>
     </ChakraProvider>
   );
