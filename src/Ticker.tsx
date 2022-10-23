@@ -31,6 +31,7 @@ const Ticker = ({ percentageType, percentChange, price, loading, label }: Ticker
       percentageElRef.current.style.color = color;
     }
   });
+
   return (
     <Skeleton isLoaded={!loading}>
       <Flex bg="gray.100" w="200px" h="80px" borderRadius={5} justify="center" align="center">
